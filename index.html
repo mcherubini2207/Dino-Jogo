@@ -3,258 +3,169 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>T-Rex Combat: Ultimate</title>
+    <title>T-Rex Combat iPad Edition</title>
     <style>
         :root { --primary: #e74c3c; --secondary: #2ecc71; --bg: #121212; }
-        body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; touch-action: none; user-select: none; }
-        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        body { 
+            margin: 0; background: var(--bg); color: white; 
+            font-family: sans-serif; overflow: hidden; 
+            touch-action: none; /* Bloqueia gestos do iPad */
+            user-select: none; -webkit-user-select: none;
+        }
         
-        /* UI Superior */
-        .hud { position: absolute; top: 20px; width: 90%; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
-        .bar-container { width: 150px; height: 20px; background: #444; border-radius: 10px; border: 2px solid #fff; overflow: hidden; }
-        #hp-bar { width: 100%; height: 100%; background: var(--secondary); transition: width 0.3s ease; }
-        .score-box { font-size: 24px; font-weight: bold; text-shadow: 2px 2px #000; }
+        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; }
 
-        canvas { background: linear-gradient(to bottom, #1a2a6c, #b21f1f, #fdbb2d); border-radius: 0; box-shadow: 0 0 50px rgba(0,0,0,0.5); cursor: crosshair; }
+        .hud { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-around; z-index: 10; font-weight: bold; }
+        .bar { width: 120px; height: 15px; background: #444; border: 2px solid #fff; border-radius: 10px; overflow: hidden; }
+        #hp-bar { width: 100%; height: 100%; background: var(--secondary); transition: 0.2s; }
 
-        /* Controles Profissionais */
-        .controls { width: 100%; max-width: 500px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 20px; box-sizing: border-box; }
-        .btn { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); border-radius: 15px; padding: 15px; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: transform 0.1s; }
-        .btn:active { transform: scale(0.9); background: rgba(255,255,255,0.3); }
-        .btn-jump { grid-column: span 2; background: rgba(52, 152, 219, 0.4); }
-        .btn-atk { background: rgba(231, 76, 60, 0.4); }
+        canvas { background: linear-gradient(to bottom, #1a2a6c, #b21f1f); display: block; width: 100%; height: 60vh; }
 
-        /* Telas de Overlay */
-        .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; padding: 20px; }
-        .overlay h1 { font-size: 48px; margin-bottom: 10px; color: var(--primary); }
-        .btn-play { padding: 15px 40px; font-size: 24px; background: var(--secondary); border: none; border-radius: 50px; color: white; cursor: pointer; font-weight: bold; box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4); }
+        /* Controles Estilo Joystick */
+        .controls-area { 
+            display: flex; justify-content: space-between; align-items: center;
+            height: 40vh; padding: 0 30px; background: #1a1a1a;
+        }
+        .d-pad, .action-pad { display: grid; gap: 15px; }
+        .d-pad { grid-template-columns: 1fr 1fr; }
+        .action-pad { grid-template-columns: 1fr 1fr; }
+
+        .btn { 
+            width: 80px; height: 80px; background: rgba(255,255,255,0.15); 
+            border: 3px solid rgba(255,255,255,0.4); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 30px; color: white;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .btn:active { background: rgba(255,255,255,0.4); transform: scale(1.1); }
+        .btn-large { width: 100px; height: 100px; border-radius: 20px; background: rgba(52, 152, 219, 0.4); }
+
+        .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.9); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; }
+        .btn-play { padding: 20px 50px; font-size: 28px; background: var(--secondary); border: none; border-radius: 50px; color: white; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div id="game-container">
     <div class="hud">
-        <div class="bar-container"><div id="hp-bar"></div></div>
-        <div class="score-box">⭐ <span id="score-val">0</span></div>
+        <div>HP <div class="bar"><div id="hp-bar"></div></div></div>
+        <div style="font-size: 24px;">⭐ <span id="score-val">0</span></div>
+        <div>BAG 🍖 <span id="bife-count">0</span></div>
     </div>
 
     <div id="menu" class="overlay">
-        <h1>T-REX COMBAT</h1>
-        <p>Defenda seu território contra os Dragões Mestre!</p>
-        <button class="btn-play" onclick="startGame()">INICIAR JOGO</button>
+        <h1 style="font-size: 50px; color: var(--primary);">T-REX IPAD</h1>
+        <button class="btn-play" onclick="startGame()">JOGAR AGORA</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
 
-    <div class="controls">
-        <div class="btn" onpointerdown="move(-6)" onpointerup="move(0)">⬅️</div>
-        <div class="btn" onpointerdown="move(6)" onpointerup="move(0)">➡️</div>
-        <div class="btn btn-jump" onpointerdown="jump()">PULAR 🚀</div>
-        <div class="btn btn-atk" onpointerdown="attack('mordida')">🦷</div>
-        <div class="btn btn-atk" onpointerdown="attack('rugido')">📢</div>
-        <div class="btn btn-atk" onpointerdown="attack('rabada')">🌪️</div>
-        <div class="btn btn-atk" style="background:rgba(46, 204, 113, 0.4)" onpointerdown="useHeal()">🍖</div>
+    <div class="controls-area">
+        <div class="d-pad">
+            <div class="btn" id="leftBtn">⬅️</div>
+            <div class="btn" id="rightBtn">➡️</div>
+        </div>
+
+        <div class="action-pad">
+            <div class="btn btn-large" id="jumpBtn">PULO</div>
+            <div class="btn" id="mordidaBtn">🦷</div>
+            <div class="btn" id="rugidoBtn">📢</div>
+            <div class="btn" style="background:rgba(46, 204, 113, 0.4)" id="healBtn">🍖</div>
+        </div>
     </div>
 </div>
 
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    const hpBar = document.getElementById("hp-bar");
-    const scoreVal = document.getElementById("score-val");
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight * 0.6;
 
-    // Configuração de tela
-    canvas.width = window.innerWidth > 600 ? 600 : window.innerWidth;
-    canvas.height = 300;
+    let gameRunning = false, score = 0, hp = 100, bifeInventory = 0;
+    let dino = { x: 100, y: canvas.height-80, w: 60, h: 60, dx: 0, dy: 0, gravity: 0.8, jumpPower: -16, grounded: false, flash: 0 };
+    let enemies = [], bullets = [], particles = [];
 
-    let gameRunning = false;
-    let score = 0;
-    let hp = 100;
-    let bifeInventory = 0;
+    // Lógica de Toque Múltiplo
+    const setupBtn = (id, startFn, endFn) => {
+        const el = document.getElementById(id);
+        el.addEventListener('touchstart', (e) => { e.preventDefault(); startFn(); });
+        el.addEventListener('touchend', (e) => { e.preventDefault(); if(endFn) endFn(); });
+        // Suporte para mouse também
+        el.addEventListener('mousedown', startFn);
+        el.addEventListener('mouseup', endFn);
+    };
 
-    let dino = { x: 50, y: 230, w: 60, h: 60, dx: 0, dy: 0, gravity: 0.8, jumpPower: -15, grounded: false, state: 'idle', flash: 0 };
-    let enemies = [];
-    let particles = [];
-    let bullets = [];
-
-    function startGame() {
-        document.getElementById("menu").style.display = "none";
-        gameRunning = true;
-        resetGame();
-        loop();
-    }
-
-    function resetGame() {
-        hp = 100; score = 0; enemies = []; bullets = []; bifeInventory = 0;
-        updateUI();
-    }
-
-    function move(speed) { if(gameRunning) dino.dx = speed; }
-    function jump() { if(gameRunning && dino.grounded) { dino.dy = dino.jumpPower; dino.grounded = false; } }
-
-    function useHeal() {
-        if(bifeInventory > 0) {
-            hp = Math.min(100, hp + 30);
-            bifeInventory--;
-            createExplosion(dino.x + 30, dino.y + 30, "#2ecc71", 15);
-            updateUI();
-        }
-    }
-
-    function createExplosion(x, y, color, count) {
-        for(let i=0; i<count; i++) {
-            particles.push({
-                x, y, 
-                vx: (Math.random() - 0.5) * 10, 
-                vy: (Math.random() - 0.5) * 10, 
-                life: 1, 
-                color
-            });
-        }
-    }
+    setupBtn('leftBtn', () => dino.dx = -7, () => dino.dx = 0);
+    setupBtn('rightBtn', () => dino.dx = 7, () => dino.dx = 0);
+    setupBtn('jumpBtn', () => { if(dino.grounded) { dino.dy = dino.jumpPower; dino.grounded = false; } });
+    setupBtn('mordidaBtn', () => attack('mordida'));
+    setupBtn('rugidoBtn', () => attack('rugido'));
+    setupBtn('healBtn', () => useHeal());
 
     function attack(type) {
         if(!gameRunning) return;
-        dino.state = 'attacking';
-        setTimeout(() => dino.state = 'idle', 200);
-
-        if(type === 'rugido') {
-            bullets.push({x: dino.x + 40, y: dino.y + 20, vx: 10, type: 'sonic'});
-        }
-
+        if(type === 'rugido') bullets.push({x: dino.x + 40, y: dino.y + 20, vx: 12, type: 'sonic'});
         enemies.forEach(en => {
-            let d = Math.abs(en.x - dino.x);
-            if(type === 'mordida' && d < 80) { en.hp -= 40; en.flash = 5; createExplosion(en.x, en.y, "#fff", 5); }
-            if(type === 'rabada' && d < 120) { en.hp -= 60; en.flash = 5; createExplosion(en.x, en.y, "#e67e22", 8); }
+            if(Math.abs(en.x - dino.x) < 120) { en.hp -= 50; en.flash = 5; }
         });
     }
+
+    function useHeal() {
+        if(bifeInventory > 0) { hp = Math.min(100, hp+40); bifeInventory--; updateUI(); }
+    }
+
+    function startGame() { document.getElementById("menu").style.display = "none"; gameRunning = true; loop(); }
 
     function update() {
         if(!gameRunning) return;
+        dino.x += dino.dx; dino.y += dino.dy; dino.dy += dino.gravity;
+        if(dino.x < 0) dino.x = 0; if(dino.x > canvas.width-60) dino.x = canvas.width-60;
+        if(dino.y > canvas.height-80) { dino.y = canvas.height-80; dino.dy = 0; dino.grounded = true; }
 
-        // Física Dino
-        dino.x += dino.dx;
-        dino.y += dino.dy;
-        dino.dy += dino.gravity;
-        if(dino.x < 0) dino.x = 0;
-        if(dino.x > canvas.width - 60) dino.x = canvas.width - 60;
-        if(dino.y > 230) { dino.y = 230; dino.dy = 0; dino.grounded = true; }
+        if(Math.random() < 0.02) enemies.push({x: canvas.width+50, y: canvas.height-80, hp: 100, flash: 0});
+        if(Math.random() < 0.005) bullets.push({x: Math.random()*canvas.width, y: 0, vx: 0, vy: 4, type: 'item'});
 
-        // Spawn de Inimigos e Itens
-        if(Math.random() < 0.015) {
-            enemies.push({x: canvas.width + 50, y: 230, hp: 100, type: score > 150 ? 'elite' : 'normal', flash: 0});
-        }
-        if(Math.random() < 0.003) {
-            createExplosion(Math.random()*canvas.width, -20, "#e67e22", 2);
-            // Bife cai do céu
-            bullets.push({x: Math.random()*canvas.width, y: 0, vx: 0, vy: 3, type: 'item'});
-        }
-
-        // Projéteis e Itens
         bullets.forEach((b, i) => {
-            b.x += (b.vx || 0);
-            b.y += (b.vy || 0);
-            
-            if(b.type === 'item' && Math.abs(b.x - dino.x) < 40 && Math.abs(b.y - dino.y) < 40) {
-                bifeInventory++;
-                bullets.splice(i, 1);
-            }
-            if(b.type === 'fire' && Math.abs(b.x - dino.x) < 30 && Math.abs(b.y - dino.y) < 40) {
-                hp -= 10;
-                dino.flash = 5;
-                bullets.splice(i, 1);
-                updateUI();
-            }
+            b.x += b.vx; b.y += b.vy;
+            if(b.type === 'item' && Math.abs(b.x-dino.x)<50 && Math.abs(b.y-dino.y)<50) { bifeInventory++; bullets.splice(i,1); updateUI(); }
+            if(b.type === 'fire' && Math.abs(b.x-dino.x)<40 && Math.abs(b.y-dino.y)<40) { hp -= 10; bullets.splice(i,1); updateUI(); }
         });
 
-        // Inimigos
         enemies.forEach((en, i) => {
-            en.x -= (en.type === 'elite' ? 4 : 2);
-            if(en.flash > 0) en.flash--;
-            
-            if(Math.random() < 0.01) bullets.push({x: en.x, y: en.y + 20, vx: -6, vy: 0, type: 'fire'});
-
-            if(en.hp <= 0) {
-                createExplosion(en.x, en.y, "#ff0000", 20);
-                enemies.splice(i, 1);
-                score += 20;
-                updateUI();
-            }
-            if(en.x < -100) enemies.splice(i, 1);
+            en.x -= 3;
+            if(Math.random() < 0.01) bullets.push({x: en.x, y: en.y+20, vx: -7, vy:0, type: 'fire'});
+            if(en.hp <= 0) { enemies.splice(i, 1); score += 20; updateUI(); }
+            if(en.x < -100) enemies.splice(i,1);
         });
 
-        // Partículas
-        particles.forEach((p, i) => {
-            p.x += p.vx; p.y += p.vy; p.life -= 0.02;
-            if(p.life <= 0) particles.splice(i, 1);
-        });
-
-        if(hp <= 0) gameOver();
+        if(hp <= 0) location.reload();
     }
 
     function updateUI() {
-        hpBar.style.width = hp + "%";
-        scoreVal.innerText = score;
-    }
-
-    function gameOver() {
-        gameRunning = false;
-        document.getElementById("menu").style.display = "flex";
-        document.getElementById("menu").innerHTML = `<h1>FIM DE JOGO</h1><p>Você marcou ${score} pontos!</p><button class="btn-play" onclick="location.reload()">REENTRAR NA BATALHA</button>`;
+        document.getElementById("hp-bar").style.width = hp + "%";
+        document.getElementById("score-val").innerText = score;
+        document.getElementById("bife-count").innerText = bifeInventory;
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
         // Chão
-        ctx.fillStyle = "#27ae60";
-        ctx.fillRect(0, 280, canvas.width, 20);
-
-        // Partículas
-        particles.forEach(p => {
-            ctx.globalAlpha = p.life;
-            ctx.fillStyle = p.color;
-            ctx.fillRect(p.x, p.y, 4, 4);
-        });
-        ctx.globalAlpha = 1;
-
-        // Itens e Balas
-        bullets.forEach(b => {
-            ctx.font = "30px Arial";
-            let icon = b.type === 'fire' ? "🔥" : b.type === 'sonic' ? "🔵" : "🍖";
-            ctx.fillText(icon, b.x, b.y + 30);
-        });
-
-        // Inimigos
-        enemies.forEach(en => {
-            ctx.font = "50px Arial";
-            if(en.flash > 0) ctx.filter = "brightness(5)";
-            ctx.fillText(en.type === 'elite' ? "👿" : "🐉", en.x, en.y + 45);
-            ctx.filter = "none";
-            // Barra de vida inimigo
-            ctx.fillStyle = "red";
-            ctx.fillRect(en.x, en.y - 10, en.hp/2, 5);
-        });
-
+        ctx.fillStyle = "#27ae60"; ctx.fillRect(0, canvas.height-25, canvas.width, 25);
         // Dino
-        ctx.font = "60px Arial";
-        if(dino.flash > 0) { ctx.filter = "hue-rotate(90deg) brightness(2)"; dino.flash--; }
-        ctx.fillText(dino.state === 'attacking' ? "🦖💥" : "🦖", dino.x, dino.y + 50);
-        ctx.filter = "none";
-
-        if(bifeInventory > 0) {
-            ctx.font = "20px Arial";
-            ctx.fillStyle = "white";
-            ctx.fillText("📦 Bife: " + bifeInventory, dino.x, dino.y - 20);
-        }
+        ctx.font = "60px Arial"; ctx.fillText("🦖", dino.x, dino.y + 50);
+        // Inimigos
+        enemies.forEach(en => { 
+            if(en.flash > 0) { ctx.filter = "brightness(3)"; en.flash--; }
+            ctx.fillText("🐉", en.x, en.y + 50); ctx.filter = "none";
+        });
+        // Balas/Itens
+        bullets.forEach(b => { 
+            ctx.font = "35px Arial"; 
+            ctx.fillText(b.type==='fire'?"🔥":b.type==='sonic'?"🔵":"🍖", b.x, b.y+30); 
+        });
     }
 
-    function loop() {
-        update();
-        draw();
-        if(gameRunning) requestAnimationFrame(loop);
-    }
+    function loop() { update(); draw(); requestAnimationFrame(loop); }
 </script>
-
 </body>
 </html>
