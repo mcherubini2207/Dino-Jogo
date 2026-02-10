@@ -1,87 +1,179 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
-    <title>Dino vs Dragões</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dino Arena: Batalha Real</title>
     <style>
-        body { text-align: center; font-family: 'Arial', sans-serif; background: #222; color: white; overflow: hidden; }
-        canvas { background: #87CEEB; border: 4px solid #fff; display: block; margin: 20px auto; border-radius: 10px; }
-        .instrucoes { font-size: 18px; margin-top: 10px; }
+        body { 
+            background: #1a1a1a; 
+            color: white; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            text-align: center; 
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        #game-container { 
+            width: 90%;
+            max-width: 500px; 
+            background: #333; 
+            padding: 20px; 
+            border-radius: 20px; 
+            border: 5px solid #555;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+        }
+        .arena { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            height: 180px; 
+            background: linear-gradient(#444, #222); 
+            border-radius: 15px; 
+            padding: 15px; 
+            margin: 20px 0;
+            position: relative;
+        }
+        .char { font-size: 70px; transition: transform 0.2s; filter: drop-shadow(2px 4px 6px black); }
+        .hp-bar { width: 100px; height: 18px; background: #555; border: 2px solid #000; border-radius: 10px; overflow: hidden; margin-top: 10px; }
+        .hp-fill { height: 100%; background: #2ecc71; transition: width 0.3s; width: 100%; }
+        .score { font-size: 24px; color: #f1c40f; font-weight: bold; margin-bottom: 10px; }
+        button { 
+            padding: 20px 40px; 
+            font-size: 22px; 
+            cursor: pointer; 
+            border-radius: 50px; 
+            border: none; 
+            background: #e74c3c; 
+            color: white; 
+            font-weight: bold;
+            box-shadow: 0 5px #c0392b;
+            active: transform: translateY(4px);
+        }
+        button:active { transform: translateY(4px); box-shadow: 0 2px #c0392b; }
+        .status { font-size: 18px; color: #fff; margin: 15px 0; min-height: 25px; font-style: italic; }
+        #fase-info { font-weight: bold; color: #3498db; text-transform: uppercase; letter-spacing: 2px; }
     </style>
 </head>
 <body>
-    <h1>🦖 Dino vs Dragões 🐉</h1>
-    <canvas id="gameCanvas" width="600" height="200"></canvas>
-    <div class="instrucoes">Aperte <b>ESPAÇO</b> ou <b>TOQUE NA TELA</b> para pular!</div>
+
+    <div id="game-container">
+        <div class="score">Pontos: <span id="pontos">0</span></div>
+        <div id="fase-info">Fase 1: T-Rex vs Velociraptor</div>
+        
+        <div class="arena">
+            <div>
+                <div class="char" id="player">🦖</div>
+                <div class="hp-bar"><div id="p-hp" class="hp-fill"></div></div>
+                <div style="font-weight: bold;">VOCÊ</div>
+            </div>
+            
+            <div id="impacto" style="font-size: 40px; position: absolute; left: 45%; opacity: 0;">💥</div>
+            
+            <div>
+                <div class="char" id="enemy">🦎</div>
+                <div class="hp-bar"><div id="e-hp" class="hp-fill"></div></div>
+                <div id="enemy-name" style="font-weight: bold;">RAPTOR</div>
+            </div>
+        </div>
+
+        <div class="status" id="msg">Toque no botão para lutar!</div>
+        <button onclick="atacar()">ATACAR! 💥</button>
+    </div>
 
     <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-
+        let fase = 1;
+        let playerHP = 100;
+        let enemyHP = 100;
         let score = 0;
-        let dino = { x: 50, y: 150, w: 40, h: 40, dy: 0, jump: -10, gravity: 0.6, grounded: true };
-        let obstacles = [];
-        let gameActive = true;
 
-        function drawDino() {
-            ctx.font = "40px Arial";
-            ctx.fillText("🦖", dino.x, dino.y + dino.h);
+        // Sons
+        const somRugido = new Audio('https://www.soundjay.com/nature/sounds/creature-roar-01.mp3');
+        const somAtaque = new Audio('https://www.soundjay.com/buttons/sounds/button-19.mp3');
+        const somVitoria = new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3');
+
+        const inimigos = [
+            {nome: "Velociraptor", emoji: "🦎", hp: 60, força: 12},
+            {nome: "Pterodátilo", emoji: "🦅", hp: 80, força: 18},
+            {nome: "Dragão de Fogo", emoji: "🐉", hp: 120, força: 25}
+        ];
+
+        function atacar() {
+            somAtaque.play();
+            if (Math.random() > 0.8) somRugido.play();
+
+            // Sorteio de dano
+            let danoJogador = Math.floor(Math.random() * 20) + 15;
+            let danoInimigo = Math.floor(Math.random() * inimigos[fase-1].força) + 5;
+
+            // Animação de ataque
+            const p = document.getElementById('player');
+            const e = document.getElementById('enemy');
+            const imp = document.getElementById('impacto');
+
+            p.style.transform = "translateX(50px) scale(1.2)";
+            imp.style.opacity = "1";
+            
+            setTimeout(() => {
+                p.style.transform = "translateX(0) scale(1)";
+                imp.style.opacity = "0";
+            }, 200);
+
+            // Atualiza Vida
+            enemyHP -= danoJogador;
+            playerHP -= danoInimigo;
+            score += 10;
+
+            atualizarInterface();
+            checkFimDeJogo();
         }
 
-        function drawObstacles() {
-            obstacles.forEach(obj => {
-                ctx.font = "40px Arial";
-                ctx.fillText("🐉", obj.x, obj.y + obj.h);
-            });
+        function atualizarInterface() {
+            document.getElementById('p-hp').style.width = Math.max(0, playerHP) + "%";
+            document.getElementById('e-hp').style.width = Math.max(0, (enemyHP / inimigos[fase-1].hp) * 100) + "%";
+            document.getElementById('pontos').innerText = score;
+            
+            // Mudar cor da vida se estiver baixa
+            if (playerHP < 30) document.getElementById('p-hp').style.background = "#e74c3c";
         }
 
-        function update() {
-            if (!gameActive) return;
-
-            // Gravidade e Pulo
-            dino.dy += dino.gravity;
-            dino.y += dino.dy;
-            if (dino.y > 150) { dino.y = 150; dino.dy = 0; dino.grounded = true; }
-
-            // Criar dragões
-            if (Math.random() < 0.02) {
-                obstacles.push({ x: 600, y: 150, w: 30, h: 30 });
-            }
-
-            // Mover dragões
-            obstacles.forEach((obj, index) => {
-                obj.x -= 6;
-                // Colisão
-                if (dino.x < obj.x + 30 && dino.x + 30 > obj.x && dino.y < obj.y + 30 && dino.y + 30 > obj.y) {
-                    gameActive = false;
-                    alert("O Dragão te pegou! Pontuação: " + score);
-                    location.reload();
+        function checkFimDeJogo() {
+            if (enemyHP <= 0) {
+                somVitoria.play();
+                score += 100;
+                if (fase < 3) {
+                    alert(`Fase ${fase} concluída! Você venceu o ${inimigos[fase-1].nome}!`);
+                    fase++;
+                    proximaFase();
+                } else {
+                    alert("🏆 VOCÊ É O REI DOS DINOSSAUROS! Pontuação Final: " + score);
+                    reiniciar();
                 }
-                // Remover dragões que saíram da tela
-                if (obj.x < -50) { obstacles.splice(index, 1); score++; }
-            });
+            } else if (playerHP <= 0) {
+                alert("O T-Rex caiu em batalha! Tente novamente.");
+                reiniciar();
+            }
         }
 
-        function loop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // Grama
-            ctx.fillStyle = "#2ecc71";
-            ctx.fillRect(0, 185, 600, 15);
-            
-            drawDino();
-            drawObstacles();
-            update();
-            
-            ctx.fillStyle = "black";
-            ctx.font = "20px Arial";
-            ctx.fillText("Pontos: " + score, 10, 30);
-            
-            requestAnimationFrame(loop);
+        function proximaFase() {
+            enemyHP = inimigos[fase-1].hp;
+            playerHP = 100;
+            document.getElementById('enemy').innerText = inimigos[fase-1].emoji;
+            document.getElementById('enemy-name').innerText = inimigos[fase-1].nome.toUpperCase();
+            document.getElementById('fase-info').innerText = `Fase ${fase}: T-Rex vs ${inimigos[fase-1].nome}`;
+            document.getElementById('p-hp').style.background = "#2ecc71";
+            atualizarInterface();
         }
 
-        window.addEventListener("keydown", (e) => { if (e.code === "Space" && dino.grounded) { dino.dy = dino.jump; dino.grounded = false; } });
-        window.addEventListener("touchstart", () => { if (dino.grounded) { dino.dy = dino.jump; dino.grounded = false; } });
-
-        loop();
+        function reiniciar() {
+            fase = 1;
+            score = 0;
+            playerHP = 100;
+            proximaFase();
+        }
     </script>
 </body>
 </html>
