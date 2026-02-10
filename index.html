@@ -1,179 +1,153 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dino Arena: Batalha Real</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>T-Rex Combat: Boss Edition</title>
     <style>
-        body { 
-            background: #1a1a1a; 
-            color: white; 
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-            text-align: center; 
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-        }
-        #game-container { 
-            width: 90%;
-            max-width: 500px; 
-            background: #333; 
-            padding: 20px; 
-            border-radius: 20px; 
-            border: 5px solid #555;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
-        }
-        .arena { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center; 
-            height: 180px; 
-            background: linear-gradient(#444, #222); 
-            border-radius: 15px; 
-            padding: 15px; 
-            margin: 20px 0;
-            position: relative;
-        }
-        .char { font-size: 70px; transition: transform 0.2s; filter: drop-shadow(2px 4px 6px black); }
-        .hp-bar { width: 100px; height: 18px; background: #555; border: 2px solid #000; border-radius: 10px; overflow: hidden; margin-top: 10px; }
-        .hp-fill { height: 100%; background: #2ecc71; transition: width 0.3s; width: 100%; }
-        .score { font-size: 24px; color: #f1c40f; font-weight: bold; margin-bottom: 10px; }
-        button { 
-            padding: 20px 40px; 
-            font-size: 22px; 
-            cursor: pointer; 
-            border-radius: 50px; 
-            border: none; 
-            background: #e74c3c; 
-            color: white; 
-            font-weight: bold;
-            box-shadow: 0 5px #c0392b;
-            active: transform: translateY(4px);
-        }
-        button:active { transform: translateY(4px); box-shadow: 0 2px #c0392b; }
-        .status { font-size: 18px; color: #fff; margin: 15px 0; min-height: 25px; font-style: italic; }
-        #fase-info { font-weight: bold; color: #3498db; text-transform: uppercase; letter-spacing: 2px; }
+        body { text-align: center; font-family: 'Arial', sans-serif; background: #1a1a1a; color: white; margin: 0; overflow: hidden; touch-action: manipulation; }
+        canvas { background: #2c3e50; border-bottom: 5px solid #27ae60; display: block; margin: 0 auto; width: 100%; max-width: 600px; height: auto; }
+        .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; padding: 10px; max-width: 600px; margin: 0 auto; }
+        button { padding: 15px 5px; font-size: 14px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; }
+        .btn-jump { background: #3498db; grid-column: span 3; font-size: 20px; }
+        .btn-1 { background: #e67e22; }
+        .btn-2 { background: #f1c40f; color: black; }
+        .btn-3 { background: #e74c3c; }
+        .stats { font-size: 18px; margin: 10px; font-weight: bold; }
+        #boss-warning { color: yellow; display: none; font-size: 24px; animation: blink 0.5s infinite; }
+        @keyframes blink { 0% { opacity: 0; } 50% { opacity: 1; } }
     </style>
 </head>
 <body>
-
-    <div id="game-container">
-        <div class="score">Pontos: <span id="pontos">0</span></div>
-        <div id="fase-info">Fase 1: T-Rex vs Velociraptor</div>
-        
-        <div class="arena">
-            <div>
-                <div class="char" id="player">🦖</div>
-                <div class="hp-bar"><div id="p-hp" class="hp-fill"></div></div>
-                <div style="font-weight: bold;">VOCÊ</div>
-            </div>
-            
-            <div id="impacto" style="font-size: 40px; position: absolute; left: 45%; opacity: 0;">💥</div>
-            
-            <div>
-                <div class="char" id="enemy">🦎</div>
-                <div class="hp-bar"><div id="e-hp" class="hp-fill"></div></div>
-                <div id="enemy-name" style="font-weight: bold;">RAPTOR</div>
-            </div>
-        </div>
-
-        <div class="status" id="msg">Toque no botão para lutar!</div>
-        <button onclick="atacar()">ATACAR! 💥</button>
+    <div class="stats">HP: <span id="hp" style="color: #2ecc71;">100</span> | Pontos: <span id="score">0</span></div>
+    <div id="boss-warning">⚠️ CUIDADO: DRAGÃO MESTRE CHEGANDO! ⚠️</div>
+    <canvas id="gameCanvas" width="600" height="250"></canvas>
+    
+    <div class="controls">
+        <button class="btn-jump" onclick="jump()">PULAR ⬆️</button>
+        <button class="btn-1" onclick="attack('mordida')">MORDIDA 🦷</button>
+        <button class="btn-2" onclick="attack('rugido')">RUGIDO 📢</button>
+        <button class="btn-3" onclick="attack('rabada')">RABADA 🦴</button>
     </div>
 
     <script>
-        let fase = 1;
-        let playerHP = 100;
-        let enemyHP = 100;
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        
+        let hp = 100;
         let score = 0;
+        let bossActive = false;
+        let dino = { x: 50, y: 180, w: 50, h: 50, dy: 0, jump: -12, gravity: 0.7, grounded: true, action: "" };
+        let enemies = [];
+        let projectiles = [];
+        let items = [];
 
-        // Sons
-        const somRugido = new Audio('https://www.soundjay.com/nature/sounds/creature-roar-01.mp3');
-        const somAtaque = new Audio('https://www.soundjay.com/buttons/sounds/button-19.mp3');
-        const somVitoria = new Audio('https://www.soundjay.com/misc/sounds/bell-ringing-05.mp3');
+        function jump() { if(dino.grounded) { dino.dy = dino.jump; dino.grounded = false; } }
 
-        const inimigos = [
-            {nome: "Velociraptor", emoji: "🦎", hp: 60, força: 12},
-            {nome: "Pterodátilo", emoji: "🦅", hp: 80, força: 18},
-            {nome: "Dragão de Fogo", emoji: "🐉", hp: 120, força: 25}
-        ];
-
-        function atacar() {
-            somAtaque.play();
-            if (Math.random() > 0.8) somRugido.play();
-
-            // Sorteio de dano
-            let danoJogador = Math.floor(Math.random() * 20) + 15;
-            let danoInimigo = Math.floor(Math.random() * inimigos[fase-1].força) + 5;
-
-            // Animação de ataque
-            const p = document.getElementById('player');
-            const e = document.getElementById('enemy');
-            const imp = document.getElementById('impacto');
-
-            p.style.transform = "translateX(50px) scale(1.2)";
-            imp.style.opacity = "1";
+        function attack(type) {
+            dino.action = type;
+            setTimeout(() => { dino.action = ""; }, 300);
+            if(type === 'rugido') projectiles.push({x: dino.x + 40, y: dino.y + 10, speed: 8, type: 'wave'});
             
-            setTimeout(() => {
-                p.style.transform = "translateX(0) scale(1)";
-                imp.style.opacity = "0";
-            }, 200);
-
-            // Atualiza Vida
-            enemyHP -= danoJogador;
-            playerHP -= danoInimigo;
-            score += 10;
-
-            atualizarInterface();
-            checkFimDeJogo();
+            enemies.forEach((en) => {
+                let dist = Math.abs(en.x - dino.x);
+                if(type === 'mordida' && dist < 80) en.hp -= 35;
+                if(type === 'rabada' && dist < 110) en.hp -= 60;
+            });
         }
 
-        function atualizarInterface() {
-            document.getElementById('p-hp').style.width = Math.max(0, playerHP) + "%";
-            document.getElementById('e-hp').style.width = Math.max(0, (enemyHP / inimigos[fase-1].hp) * 100) + "%";
-            document.getElementById('pontos').innerText = score;
-            
-            // Mudar cor da vida se estiver baixa
-            if (playerHP < 30) document.getElementById('p-hp').style.background = "#e74c3c";
-        }
+        function update() {
+            dino.dy += dino.gravity;
+            dino.y += dino.dy;
+            if (dino.y > 180) { dino.y = 180; dino.dy = 0; dino.grounded = true; }
 
-        function checkFimDeJogo() {
-            if (enemyHP <= 0) {
-                somVitoria.play();
-                score += 100;
-                if (fase < 3) {
-                    alert(`Fase ${fase} concluída! Você venceu o ${inimigos[fase-1].nome}!`);
-                    fase++;
-                    proximaFase();
-                } else {
-                    alert("🏆 VOCÊ É O REI DOS DINOSSAUROS! Pontuação Final: " + score);
-                    reiniciar();
-                }
-            } else if (playerHP <= 0) {
-                alert("O T-Rex caiu em batalha! Tente novamente.");
-                reiniciar();
+            // Aparecer Bife (Cura)
+            if (Math.random() < 0.005) items.push({ x: Math.random() * 500 + 50, y: -50, dy: 2 });
+
+            // Lógica de Inimigos
+            if (!bossActive && Math.random() < 0.01) {
+                enemies.push({ x: 600, y: 180, hp: 100, shootTimer: 0, type: 'normal' });
             }
+
+            // Boss Final aparece com 100 pontos
+            if (score >= 100 && !bossActive) {
+                bossActive = true;
+                document.getElementById("boss-warning").style.display = "block";
+                setTimeout(() => {
+                    document.getElementById("boss-warning").style.display = "none";
+                    enemies.push({ x: 600, y: 130, hp: 1000, shootTimer: 0, type: 'boss' });
+                }, 3000);
+            }
+
+            // Atualizar Itens
+            items.forEach((it, i) => {
+                it.y += it.dy;
+                if(Math.abs(it.x - dino.x) < 40 && Math.abs(it.y - dino.y) < 40) {
+                    hp = Math.min(100, hp + 20);
+                    items.splice(i, 1);
+                }
+            });
+
+            // Tiros
+            projectiles.forEach((p, pi) => {
+                p.x += p.speed;
+                enemies.forEach((en) => {
+                    if(p.x > en.x && p.x < en.x + 60) { en.hp -= 20; projectiles.splice(pi, 1); }
+                });
+            });
+
+            // Inimigos
+            enemies.forEach((en, i) => {
+                if(en.type === 'normal') en.x -= 2;
+                else if(en.x > 400) en.x -= 1; // Boss para no meio
+
+                en.shootTimer += (en.type === 'boss' ? 2 : 1);
+                if(en.shootTimer > 80) {
+                    projectiles.push({x: en.x, y: en.y + 20, speed: -6, type: 'fire'});
+                    en.shootTimer = 0;
+                }
+
+                projectiles.forEach((p, pi) => {
+                    if(p.type === 'fire' && p.x < dino.x + 40 && p.x > dino.x && p.y > dino.y && p.y < dino.y + 60) {
+                        hp -= 5;
+                        projectiles.splice(pi, 1);
+                    }
+                });
+
+                if(en.hp <= 0) {
+                    if(en.type === 'boss') alert("VOCÊ VENCEU O DRAGÃO MESTRE! 🏆");
+                    enemies.splice(i, 1); 
+                    score += 20; 
+                }
+            });
+
+            document.getElementById("hp").innerText = hp;
+            document.getElementById("score").innerText = score;
+            if(hp <= 0) { alert("Game Over!"); location.reload(); }
         }
 
-        function proximaFase() {
-            enemyHP = inimigos[fase-1].hp;
-            playerHP = 100;
-            document.getElementById('enemy').innerText = inimigos[fase-1].emoji;
-            document.getElementById('enemy-name').innerText = inimigos[fase-1].nome.toUpperCase();
-            document.getElementById('fase-info').innerText = `Fase ${fase}: T-Rex vs ${inimigos[fase-1].nome}`;
-            document.getElementById('p-hp').style.background = "#2ecc71";
-            atualizarInterface();
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.font = "50px Arial";
+            ctx.fillText("🦖", dino.x, dino.y + 40);
+            if(dino.action === 'mordida') ctx.fillText("💥", dino.x + 45, dino.y + 20);
+            if(dino.action === 'rabada') ctx.fillText("🌪️", dino.x - 25, dino.y + 45);
+            if(dino.action === 'rugido') ctx.fillText("🗯️", dino.x + 45, dino.y + 15);
+
+            items.forEach(it => ctx.fillText("🍖", it.x, it.y));
+
+            enemies.forEach(en => {
+                let size = en.type === 'boss' ? "100px" : "50px";
+                ctx.font = size + " Arial";
+                ctx.fillText(en.type === 'boss' ? "👑" : "🐉", en.x, en.y + (en.type === 'boss' ? 80 : 40));
+                ctx.fillStyle = "red";
+                ctx.fillRect(en.x, en.y - 20, (en.hp / (en.type === 'boss' ? 10 : 1)), 8);
+            });
+
+            projectiles.forEach(p => ctx.fillText(p.type === 'fire' ? "🔥" : "🔵", p.x, p.y + 20));
         }
 
-        function reiniciar() {
-            fase = 1;
-            score = 0;
-            playerHP = 100;
-            proximaFase();
-        }
+        function loop() { update(); draw(); requestAnimationFrame(loop); }
+        loop();
     </script>
 </body>
 </html>
