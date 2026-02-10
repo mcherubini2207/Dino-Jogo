@@ -1,136 +1,260 @@
 <!DOCTYPE html>
-<html>
+<html lang="pt-br">
 <head>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>T-Rex Adventure Combat</title>
+    <title>T-Rex Combat: Ultimate</title>
     <style>
-        body { text-align: center; font-family: 'Arial', sans-serif; background: #1a1a1a; color: white; margin: 0; overflow: hidden; touch-action: manipulation; }
-        canvas { background: #2c3e50; border-bottom: 5px solid #27ae60; display: block; margin: 0 auto; width: 100%; max-width: 600px; height: auto; }
-        .controls { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; padding: 10px; max-width: 600px; margin: 0 auto; }
-        button { padding: 15px 5px; font-size: 14px; border: none; border-radius: 8px; color: white; font-weight: bold; cursor: pointer; min-height: 60px; }
-        .btn-move { background: #7f8c8d; } /* Botões de andar */
-        .btn-jump { background: #3498db; }
-        .btn-atk { background: #e74c3c; }
-        .stats { font-size: 18px; margin: 10px; font-weight: bold; }
+        :root { --primary: #e74c3c; --secondary: #2ecc71; --bg: #121212; }
+        body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; overflow: hidden; touch-action: none; user-select: none; }
+        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        
+        /* UI Superior */
+        .hud { position: absolute; top: 20px; width: 90%; display: flex; justify-content: space-between; z-index: 10; pointer-events: none; }
+        .bar-container { width: 150px; height: 20px; background: #444; border-radius: 10px; border: 2px solid #fff; overflow: hidden; }
+        #hp-bar { width: 100%; height: 100%; background: var(--secondary); transition: width 0.3s ease; }
+        .score-box { font-size: 24px; font-weight: bold; text-shadow: 2px 2px #000; }
+
+        canvas { background: linear-gradient(to bottom, #1a2a6c, #b21f1f, #fdbb2d); border-radius: 0; box-shadow: 0 0 50px rgba(0,0,0,0.5); cursor: crosshair; }
+
+        /* Controles Profissionais */
+        .controls { width: 100%; max-width: 500px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 20px; box-sizing: border-box; }
+        .btn { background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); border-radius: 15px; padding: 15px; display: flex; align-items: center; justify-content: center; font-size: 24px; transition: transform 0.1s; }
+        .btn:active { transform: scale(0.9); background: rgba(255,255,255,0.3); }
+        .btn-jump { grid-column: span 2; background: rgba(52, 152, 219, 0.4); }
+        .btn-atk { background: rgba(231, 76, 60, 0.4); }
+
+        /* Telas de Overlay */
+        .overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; text-align: center; padding: 20px; }
+        .overlay h1 { font-size: 48px; margin-bottom: 10px; color: var(--primary); }
+        .btn-play { padding: 15px 40px; font-size: 24px; background: var(--secondary); border: none; border-radius: 50px; color: white; cursor: pointer; font-weight: bold; box-shadow: 0 5px 15px rgba(46, 204, 113, 0.4); }
     </style>
 </head>
 <body>
-    <div class="stats">HP: <span id="hp" style="color: #2ecc71;">100</span> | Pontos: <span id="score">0</span></div>
-    <canvas id="gameCanvas" width="600" height="250"></canvas>
-    
-    <div class="controls">
-        <button class="btn-move" onmousedown="move(-5)" onmouseup="move(0)" ontouchstart="move(-5)" ontouchend="move(0)">⬅️</button>
-        <button class="btn-move" onmousedown="move(5)" onmouseup="move(0)" ontouchstart="move(5)" ontouchend="move(0)">➡️</button>
-        <button class="btn-jump" onclick="jump()">PULO ⬆️</button>
-        <button class="btn-atk" onclick="attack('mordida')">MORDIDA 🦷</button>
-        <button class="btn-atk" style="background: #f1c40f; color: black;" onclick="attack('rugido')">RUGIDO 📢</button>
-        <button class="btn-atk" style="background: #e67e22;" onclick="attack('rabada')">RABADA 🦴</button>
+
+<div id="game-container">
+    <div class="hud">
+        <div class="bar-container"><div id="hp-bar"></div></div>
+        <div class="score-box">⭐ <span id="score-val">0</span></div>
     </div>
 
-    <script>
-        const canvas = document.getElementById("gameCanvas");
-        const ctx = canvas.getContext("2d");
-        
-        let hp = 100;
-        let score = 0;
-        let bossActive = false;
-        let dino = { x: 50, y: 180, w: 50, h: 50, dx: 0, dy: 0, jump: -12, gravity: 0.7, grounded: true, action: "" };
-        let enemies = [];
-        let projectiles = [];
-        let items = [];
+    <div id="menu" class="overlay">
+        <h1>T-REX COMBAT</h1>
+        <p>Defenda seu território contra os Dragões Mestre!</p>
+        <button class="btn-play" onclick="startGame()">INICIAR JOGO</button>
+    </div>
 
-        function move(speed) { dino.dx = speed; }
-        function jump() { if(dino.grounded) { dino.dy = dino.jump; dino.grounded = false; } }
+    <canvas id="gameCanvas"></canvas>
 
-        function attack(type) {
-            dino.action = type;
-            setTimeout(() => { dino.action = ""; }, 300);
-            if(type === 'rugido') projectiles.push({x: dino.x + 40, y: dino.y + 10, speed: 8, type: 'wave'});
-            
-            enemies.forEach((en) => {
-                let dist = Math.abs((en.x) - (dino.x));
-                if(type === 'mordida' && dist < 80) en.hp -= 35;
-                if(type === 'rabada' && dist < 110) en.hp -= 60;
-            });
-        }
+    <div class="controls">
+        <div class="btn" onpointerdown="move(-6)" onpointerup="move(0)">⬅️</div>
+        <div class="btn" onpointerdown="move(6)" onpointerup="move(0)">➡️</div>
+        <div class="btn btn-jump" onpointerdown="jump()">PULAR 🚀</div>
+        <div class="btn btn-atk" onpointerdown="attack('mordida')">🦷</div>
+        <div class="btn btn-atk" onpointerdown="attack('rugido')">📢</div>
+        <div class="btn btn-atk" onpointerdown="attack('rabada')">🌪️</div>
+        <div class="btn btn-atk" style="background:rgba(46, 204, 113, 0.4)" onpointerdown="useHeal()">🍖</div>
+    </div>
+</div>
 
-        function update() {
-            // Movimento Horizontal
-            dino.x += dino.dx;
-            if(dino.x < 0) dino.x = 0;
-            if(dino.x > 550) dino.x = 550;
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const hpBar = document.getElementById("hp-bar");
+    const scoreVal = document.getElementById("score-val");
 
-            // Gravidade e Pulo
-            dino.dy += dino.gravity;
-            dino.y += dino.dy;
-            if (dino.y > 180) { dino.y = 180; dino.dy = 0; dino.grounded = true; }
+    // Configuração de tela
+    canvas.width = window.innerWidth > 600 ? 600 : window.innerWidth;
+    canvas.height = 300;
 
-            // Spawns
-            if (Math.random() < 0.005) items.push({ x: Math.random() * 500, y: -50, dy: 2 });
-            if (!bossActive && Math.random() < 0.01) enemies.push({ x: 600, y: 180, hp: 100, shootTimer: 0, type: 'normal' });
+    let gameRunning = false;
+    let score = 0;
+    let hp = 100;
+    let bifeInventory = 0;
 
-            if (score >= 100 && !bossActive) {
-                bossActive = true;
-                setTimeout(() => { enemies.push({ x: 500, y: 130, hp: 1000, shootTimer: 0, type: 'boss' }); }, 2000);
-            }
+    let dino = { x: 50, y: 230, w: 60, h: 60, dx: 0, dy: 0, gravity: 0.8, jumpPower: -15, grounded: false, state: 'idle', flash: 0 };
+    let enemies = [];
+    let particles = [];
+    let bullets = [];
 
-            // Lógica de Itens (Cura)
-            items.forEach((it, i) => {
-                it.y += it.dy;
-                if(Math.abs(it.x - dino.x) < 40 && Math.abs(it.y - dino.y) < 40) {
-                    hp = Math.min(100, hp + 20);
-                    items.splice(i, 1);
-                }
-            });
-
-            // Tiros e Inimigos
-            projectiles.forEach((p, pi) => {
-                p.x += p.speed;
-                enemies.forEach((en) => {
-                    if(p.x > en.x && p.x < en.x + 60) { en.hp -= 20; projectiles.splice(pi, 1); }
-                });
-            });
-
-            enemies.forEach((en, i) => {
-                if(en.type === 'normal') en.x -= 2;
-                en.shootTimer++;
-                if(en.shootTimer > 80) {
-                    projectiles.push({x: en.x, y: en.y + 20, speed: -5, type: 'fire'});
-                    en.shootTimer = 0;
-                }
-                
-                if(en.hp <= 0) { enemies.splice(i, 1); score += 20; if(en.type === 'boss') alert("VENCEU!"); }
-                if(en.x < -100) enemies.splice(i, 1);
-            });
-
-            // Colisão com fogo
-            projectiles.forEach((p, pi) => {
-                if(p.type === 'fire' && Math.abs(p.x - dino.x) < 30 && Math.abs(p.y - dino.y) < 50) {
-                    hp -= 5;
-                    projectiles.splice(pi, 1);
-                }
-            });
-
-            document.getElementById("hp").innerText = hp;
-            document.getElementById("score").innerText = score;
-            if(hp <= 0) { alert("Game Over!"); location.reload(); }
-        }
-
-        function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.font = "50px Arial";
-            ctx.fillText("🦖", dino.x, dino.y + 40);
-            if(dino.action) ctx.fillText("💥", dino.x + 40, dino.y + 20);
-            items.forEach(it => ctx.fillText("🍖", it.x, it.y));
-            enemies.forEach(en => {
-                ctx.font = (en.type === 'boss' ? "90px" : "50px") + " Arial";
-                ctx.fillText(en.type === 'boss' ? "👑" : "🐉", en.x, en.y + 40);
-            });
-            projectiles.forEach(p => ctx.fillText(p.type === 'fire' ? "🔥" : "🔵", p.x, p.y + 20));
-        }
-
-        function loop() { update(); draw(); requestAnimationFrame(loop); }
+    function startGame() {
+        document.getElementById("menu").style.display = "none";
+        gameRunning = true;
+        resetGame();
         loop();
-    </script>
+    }
+
+    function resetGame() {
+        hp = 100; score = 0; enemies = []; bullets = []; bifeInventory = 0;
+        updateUI();
+    }
+
+    function move(speed) { if(gameRunning) dino.dx = speed; }
+    function jump() { if(gameRunning && dino.grounded) { dino.dy = dino.jumpPower; dino.grounded = false; } }
+
+    function useHeal() {
+        if(bifeInventory > 0) {
+            hp = Math.min(100, hp + 30);
+            bifeInventory--;
+            createExplosion(dino.x + 30, dino.y + 30, "#2ecc71", 15);
+            updateUI();
+        }
+    }
+
+    function createExplosion(x, y, color, count) {
+        for(let i=0; i<count; i++) {
+            particles.push({
+                x, y, 
+                vx: (Math.random() - 0.5) * 10, 
+                vy: (Math.random() - 0.5) * 10, 
+                life: 1, 
+                color
+            });
+        }
+    }
+
+    function attack(type) {
+        if(!gameRunning) return;
+        dino.state = 'attacking';
+        setTimeout(() => dino.state = 'idle', 200);
+
+        if(type === 'rugido') {
+            bullets.push({x: dino.x + 40, y: dino.y + 20, vx: 10, type: 'sonic'});
+        }
+
+        enemies.forEach(en => {
+            let d = Math.abs(en.x - dino.x);
+            if(type === 'mordida' && d < 80) { en.hp -= 40; en.flash = 5; createExplosion(en.x, en.y, "#fff", 5); }
+            if(type === 'rabada' && d < 120) { en.hp -= 60; en.flash = 5; createExplosion(en.x, en.y, "#e67e22", 8); }
+        });
+    }
+
+    function update() {
+        if(!gameRunning) return;
+
+        // Física Dino
+        dino.x += dino.dx;
+        dino.y += dino.dy;
+        dino.dy += dino.gravity;
+        if(dino.x < 0) dino.x = 0;
+        if(dino.x > canvas.width - 60) dino.x = canvas.width - 60;
+        if(dino.y > 230) { dino.y = 230; dino.dy = 0; dino.grounded = true; }
+
+        // Spawn de Inimigos e Itens
+        if(Math.random() < 0.015) {
+            enemies.push({x: canvas.width + 50, y: 230, hp: 100, type: score > 150 ? 'elite' : 'normal', flash: 0});
+        }
+        if(Math.random() < 0.003) {
+            createExplosion(Math.random()*canvas.width, -20, "#e67e22", 2);
+            // Bife cai do céu
+            bullets.push({x: Math.random()*canvas.width, y: 0, vx: 0, vy: 3, type: 'item'});
+        }
+
+        // Projéteis e Itens
+        bullets.forEach((b, i) => {
+            b.x += (b.vx || 0);
+            b.y += (b.vy || 0);
+            
+            if(b.type === 'item' && Math.abs(b.x - dino.x) < 40 && Math.abs(b.y - dino.y) < 40) {
+                bifeInventory++;
+                bullets.splice(i, 1);
+            }
+            if(b.type === 'fire' && Math.abs(b.x - dino.x) < 30 && Math.abs(b.y - dino.y) < 40) {
+                hp -= 10;
+                dino.flash = 5;
+                bullets.splice(i, 1);
+                updateUI();
+            }
+        });
+
+        // Inimigos
+        enemies.forEach((en, i) => {
+            en.x -= (en.type === 'elite' ? 4 : 2);
+            if(en.flash > 0) en.flash--;
+            
+            if(Math.random() < 0.01) bullets.push({x: en.x, y: en.y + 20, vx: -6, vy: 0, type: 'fire'});
+
+            if(en.hp <= 0) {
+                createExplosion(en.x, en.y, "#ff0000", 20);
+                enemies.splice(i, 1);
+                score += 20;
+                updateUI();
+            }
+            if(en.x < -100) enemies.splice(i, 1);
+        });
+
+        // Partículas
+        particles.forEach((p, i) => {
+            p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+            if(p.life <= 0) particles.splice(i, 1);
+        });
+
+        if(hp <= 0) gameOver();
+    }
+
+    function updateUI() {
+        hpBar.style.width = hp + "%";
+        scoreVal.innerText = score;
+    }
+
+    function gameOver() {
+        gameRunning = false;
+        document.getElementById("menu").style.display = "flex";
+        document.getElementById("menu").innerHTML = `<h1>FIM DE JOGO</h1><p>Você marcou ${score} pontos!</p><button class="btn-play" onclick="location.reload()">REENTRAR NA BATALHA</button>`;
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Chão
+        ctx.fillStyle = "#27ae60";
+        ctx.fillRect(0, 280, canvas.width, 20);
+
+        // Partículas
+        particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.fillRect(p.x, p.y, 4, 4);
+        });
+        ctx.globalAlpha = 1;
+
+        // Itens e Balas
+        bullets.forEach(b => {
+            ctx.font = "30px Arial";
+            let icon = b.type === 'fire' ? "🔥" : b.type === 'sonic' ? "🔵" : "🍖";
+            ctx.fillText(icon, b.x, b.y + 30);
+        });
+
+        // Inimigos
+        enemies.forEach(en => {
+            ctx.font = "50px Arial";
+            if(en.flash > 0) ctx.filter = "brightness(5)";
+            ctx.fillText(en.type === 'elite' ? "👿" : "🐉", en.x, en.y + 45);
+            ctx.filter = "none";
+            // Barra de vida inimigo
+            ctx.fillStyle = "red";
+            ctx.fillRect(en.x, en.y - 10, en.hp/2, 5);
+        });
+
+        // Dino
+        ctx.font = "60px Arial";
+        if(dino.flash > 0) { ctx.filter = "hue-rotate(90deg) brightness(2)"; dino.flash--; }
+        ctx.fillText(dino.state === 'attacking' ? "🦖💥" : "🦖", dino.x, dino.y + 50);
+        ctx.filter = "none";
+
+        if(bifeInventory > 0) {
+            ctx.font = "20px Arial";
+            ctx.fillStyle = "white";
+            ctx.fillText("📦 Bife: " + bifeInventory, dino.x, dino.y - 20);
+        }
+    }
+
+    function loop() {
+        update();
+        draw();
+        if(gameRunning) requestAnimationFrame(loop);
+    }
+</script>
+
 </body>
 </html>
